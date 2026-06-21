@@ -9,6 +9,8 @@
 
 use std::collections::HashMap;
 
+use rayon::prelude::*;
+
 #[derive(Clone)]
 pub struct Module {
     pub tf: String,
@@ -123,8 +125,9 @@ pub fn modules_from_adjacencies(
         gene_names.iter().enumerate().map(|(i, g)| (g.as_str(), i)).collect();
     let n_edges = adj_tf.len();
 
-    // --- correlation sign per edge ---
+    // --- correlation sign per edge (parallel over edges) ---
     let regulation: Vec<i32> = (0..n_edges)
+        .into_par_iter()
         .map(|i| {
             let ci = gene_index[adj_tf[i].as_str()];
             let cj = gene_index[adj_target[i].as_str()];

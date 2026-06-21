@@ -1,12 +1,12 @@
 # scenic-rs
 
 A memory-efficient Rust implementation of the [pySCENIC](https://github.com/aertslab/pySCENIC)
-single-cell gene regulatory network (GRN) pipeline.
+single-cell gene regulatory network (GRN) pipeline. Not associated with the lab, just built this
+as a quick project!
 
 ## Benefits
 
-Meant as a replacement for pySCENIC. Implements the same algorithms.
-
+- Implements the same algorithms as pySCENIC (GRNBoost2, GENIE3, AUCell, CTX trimming)
 - Can use modern numpy/pandas in your environment
 - Memory usage is constant with increased parallelism, allowing for faster execution without OOM
 
