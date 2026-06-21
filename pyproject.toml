@@ -1,0 +1,15 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "scenic-rs"
+version = "0.1.0"
+description = "Blazingly fast Rust backend for SCENIC GRN inference (GENIE3)"
+requires-python = ">=3.9"
+dependencies = ["numpy", "pandas"]
+
+[tool.maturin]
+python-source = "python"
+module-name = "scenic_rs._core"
+features = ["pyo3/extension-module"]

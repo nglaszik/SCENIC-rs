@@ -1,0 +1,21 @@
+/target
+**/*.rs.bk
+*.so
+*.pyd
+__pycache__/
+*.pyc
+/dist
+/build
+*.egg-info/
+.venv/
+
+# notebooks
+.ipynb_checkpoints/
+
+# benchmark intermediates (cached pyscenic/scenic-rs outputs); figures are kept
+bench/cache/
+
+# large / regenerable data: keep the small prepped .npz + TF list, drop the rest
+data/pbmc3k.tar.gz
+data/filtered_gene_bc_matrices/
+data/*.loom
