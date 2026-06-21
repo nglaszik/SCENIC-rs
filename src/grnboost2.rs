@@ -31,9 +31,11 @@ struct Node {
     value: f32,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_tree(
     cols: &[&[f32]],
     resid: &[f32],
+    sorted_feat: &[Vec<u32>],
     idx: &[usize],
     depth: usize,
     max_depth: usize,
@@ -43,6 +45,8 @@ fn build_tree(
     nodes: &mut Vec<Node>,
     gains: &mut [f64],
     feat_buf: &mut Vec<usize>,
+    member: &mut [bool],
+    order_buf: &mut Vec<u32>,
 ) -> u32 {
     let n = idx.len();
     let (mut s, mut ss) = (0f64, 0f64);
@@ -65,6 +69,14 @@ fn build_tree(
         return make_leaf(nodes);
     }
 
+    // Mark this node's samples so we can pull each feature's pre-sorted order in
+    // O(n) instead of re-sorting per feature. sorted_feat[f] is the global sample
+    // order by feature value (built once per target); filtering it by membership
+    // yields exactly the same per-node sorted order the old code re-derived.
+    for &i in idx {
+        member[i] = true;
+    }
+
     feat_buf.shuffle(rng);
     // sklearn GradientBoostingRegressor selects splits by Friedman's improvement
     // score  (n_l*n_r/(n_l+n_r)) * (mean_l - mean_r)^2 , but accumulates feature
@@ -72,16 +84,20 @@ fn build_tree(
     let mut best: Option<(usize, f32, f64, f64)> = None; // (feat, thr, friedman, mse_dec)
     for &f in feat_buf.iter().take(mf) {
         let col = cols[f];
-        let mut order = idx.to_vec();
-        order.sort_by(|&a, &b| col[a].partial_cmp(&col[b]).unwrap_or(std::cmp::Ordering::Equal));
+        order_buf.clear();
+        for &smp in &sorted_feat[f] {
+            if member[smp as usize] {
+                order_buf.push(smp);
+            }
+        }
         let (mut ls, mut lss, mut ln) = (0f64, 0f64, 0usize);
         for k in 0..n - 1 {
-            let i = order[k];
+            let i = order_buf[k] as usize;
             let v = resid[i] as f64;
             ls += v;
             lss += v * v;
             ln += 1;
-            let (vf, vfn) = (col[order[k]], col[order[k + 1]]);
+            let (vf, vfn) = (col[order_buf[k] as usize], col[order_buf[k + 1] as usize]);
             if vf == vfn {
                 continue;
             }
@@ -98,6 +114,10 @@ fn build_tree(
                 best = Some((f, (vf + vfn) / 2.0, friedman, mse_dec));
             }
         }
+    }
+
+    for &i in idx {
+        member[i] = false;
     }
 
     let (f, thr, _friedman, mse_dec) = match best {
@@ -119,8 +139,8 @@ fn build_tree(
     }
     let id = nodes.len() as u32;
     nodes.push(Node { feature: f as i32, threshold: thr, left: 0, right: 0, value: mean });
-    let l = build_tree(cols, resid, &left, depth + 1, max_depth, mf, min_leaf, rng, nodes, gains, feat_buf);
-    let r = build_tree(cols, resid, &right, depth + 1, max_depth, mf, min_leaf, rng, nodes, gains, feat_buf);
+    let l = build_tree(cols, resid, sorted_feat, &left, depth + 1, max_depth, mf, min_leaf, rng, nodes, gains, feat_buf, member, order_buf);
+    let r = build_tree(cols, resid, sorted_feat, &right, depth + 1, max_depth, mf, min_leaf, rng, nodes, gains, feat_buf, member, order_buf);
     nodes[id as usize].left = l;
     nodes[id as usize].right = r;
     id
@@ -160,6 +180,20 @@ fn boost_importance(cols: &[&[f32]], y: &[f32], p: &GbmParams) -> Vec<f64> {
     let mut feat_buf: Vec<usize> = (0..n_feat).collect();
     let n_sub = ((p.subsample * n as f64).round() as usize).clamp(1, n);
 
+    // Pre-sort the sample order by each feature value ONCE (feature values are
+    // constant across boosting rounds). Each tree node then reuses these orders
+    // via a membership filter instead of re-sorting — the main GRNBoost2 speedup.
+    let sorted_feat: Vec<Vec<u32>> = cols
+        .iter()
+        .map(|col| {
+            let mut v: Vec<u32> = (0..n as u32).collect();
+            v.sort_unstable_by(|&a, &b| col[a as usize].total_cmp(&col[b as usize]));
+            v
+        })
+        .collect();
+    let mut member = vec![false; n];
+    let mut order_buf: Vec<u32> = Vec::with_capacity(n);
+
     // Out-of-bag early stopping (GRNBoost2): with subsample < 1 each round leaves
     // held-out (OOB) samples. We track each tree's improvement in OOB squared
     // error and stop once the mean improvement over the trailing window goes
@@ -185,7 +219,8 @@ fn boost_importance(cols: &[&[f32]], y: &[f32], p: &GbmParams) -> Vec<f64> {
         let loss_before = if can_stop { oob_mse(&pred, out_bag) } else { 0.0 };
 
         let mut nodes: Vec<Node> = Vec::new();
-        build_tree(cols, &resid, in_bag, 0, p.max_depth, mf, p.min_leaf, &mut rng, &mut nodes, &mut gains, &mut feat_buf);
+        build_tree(cols, &resid, &sorted_feat, in_bag, 0, p.max_depth, mf, p.min_leaf,
+                   &mut rng, &mut nodes, &mut gains, &mut feat_buf, &mut member, &mut order_buf);
         for i in 0..n {
             pred[i] += lr * predict_row(&nodes, cols, i);
         }

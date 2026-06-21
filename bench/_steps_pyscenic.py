@@ -81,13 +81,21 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--genie3", action="store_true")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--only", choices=["grnboost2", "genie3", "aucell"], default=None,
+                    help="run a single step in isolation (for per-step memory profiling)")
     args = ap.parse_args()
 
+    run_grnboost2 = args.only in (None, "grnboost2")
+    run_genie3 = (args.only == "genie3") or (args.only is None and args.genie3)
+    run_aucell = args.only in (None, "aucell")
+
     df, genes, tfs = load()
-    grn("grnboost2", df, tfs, args.workers, args.seed, args.force)
-    if args.genie3:
+    if run_grnboost2:
+        grn("grnboost2", df, tfs, args.workers, args.seed, args.force)
+    if run_genie3:
         grn("genie3", df, tfs, args.workers, args.seed, args.force)
-    aucell_step(df, args.workers, args.seed, args.force)
+    if run_aucell:
+        aucell_step(df, args.workers, args.seed, args.force)
 
 
 if __name__ == "__main__":

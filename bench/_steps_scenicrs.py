@@ -35,7 +35,13 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--genie3", action="store_true")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--only", choices=["grnboost2", "genie3", "aucell"], default=None,
+                    help="run a single step in isolation (for per-step memory profiling)")
     args = ap.parse_args()
+
+    run_grnboost2 = args.only in (None, "grnboost2")
+    run_genie3 = (args.only == "genie3") or (args.only is None and args.genie3)
+    run_aucell = args.only in (None, "aucell")
 
     import scenic_rs
     X, genes, tfs = load()
@@ -44,7 +50,9 @@ def main():
         return (not args.force) and os.path.exists(os.path.join(CACHE, name))
 
     # ---- GRN / GRNBoost2 ----
-    if cached("adj_scenicrs_grnboost2.csv"):
+    if not run_grnboost2:
+        pass
+    elif cached("adj_scenicrs_grnboost2.csv"):
         print("  scenic_rs.grnboost2: cached")
     else:
         t0 = time.perf_counter()
@@ -59,7 +67,7 @@ def main():
         print(f"  scenic_rs.grnboost2: {dt:.2f}s ({len(adj)} edges)")
 
     # ---- GRN / GENIE3 ----
-    if args.genie3:
+    if run_genie3:
         if cached("adj_scenicrs_genie3.csv"):
             print("  scenic_rs.genie3: cached")
         else:
@@ -72,7 +80,9 @@ def main():
             print(f"  scenic_rs.genie3: {dt:.2f}s ({len(adj)} edges)")
 
     # ---- AUCell ----
-    if cached("auc_scenicrs.csv"):
+    if not run_aucell:
+        pass
+    elif cached("auc_scenicrs.csv"):
         print("  scenic_rs.aucell: cached")
     else:
         sig_def = json.load(open(os.path.join(CACHE, "signatures.json")))
