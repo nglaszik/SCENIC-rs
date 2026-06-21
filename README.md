@@ -14,7 +14,7 @@ as a quick project!
 
 **Runtime** (using scenic-rs)
 - Python ≥ 3.9
-- `numpy`, `pandas` — pulled in automatically as dependencies
+- `numpy`, `pandas`
 - `scanpy` — only for `read_cellranger` (loading Cell Ranger / `.h5ad` data); not
   needed if you build the matrix yourself
 - For the **`ctx`** step only: the cisTarget **ranking databases**
@@ -22,9 +22,9 @@ as a quick project!
   from [resources.aertslab.org/cistarget](https://resources.aertslab.org/cistarget/)
 
 **Building from source**
+- One needs to build the Rust backend from source before running scenic-rs.
 - A recent stable **Rust** toolchain (`cargo`/`rustc`) — ≥ 1.70 (tested on 1.86);
-  install via [rustup.rs](https://rustup.rs). The Arrow feather reader is pure
-  Rust, so no system C/Fortran libraries are required.
+  install via [rustup.rs](https://rustup.rs).
 - **maturin** ≥ 1.0 (`pip install maturin`)
 
 **Benchmarks / validation only** (optional)
