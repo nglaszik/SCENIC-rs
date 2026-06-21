@@ -1,6 +1,6 @@
 # scenic-rs
 
-A memory-efficient Rust backend for the [pySCENIC](https://github.com/aertslab/pySCENIC)
+A memory-efficient Rust implementation of the [pySCENIC](https://github.com/aertslab/pySCENIC)
 single-cell gene regulatory network (GRN) pipeline.
 
 ## Benefits
