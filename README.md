@@ -15,6 +15,8 @@ Meant as a replacement for pySCENIC. Implements the same algorithms.
 **Runtime** (using scenic-rs)
 - Python ≥ 3.9
 - `numpy`, `pandas` — pulled in automatically as dependencies
+- `scanpy` — only for `read_cellranger` (loading Cell Ranger / `.h5ad` data); not
+  needed if you build the matrix yourself
 - For the **`ctx`** step only: the cisTarget **ranking databases**
   (`*.genes_vs_motifs.rankings.feather`) and the **motif2TF annotations** (`.tbl`),
   from [resources.aertslab.org/cistarget](https://resources.aertslab.org/cistarget/)
@@ -39,24 +41,23 @@ python examples/run_example.py
 
 ## Usage
 
-scenic-rs works on a **cells × genes** expression matrix (numpy, `float32`) plus
-the gene names and a TF list. Load it however your data is stored:
+scenic-rs starts from **Cell Ranger** output — the `filtered_feature_bc_matrix`
+directory (or `.h5`) in `outs/`. `read_cellranger` loads it into the cells × genes
+`float32` matrix and gene symbols scenic-rs needs (raw counts; uses `scanpy`):
 
 ```python
-import numpy as np
+import scenic_rs
 
-# from an .npz with X / genes / tfs arrays (e.g. the prepped benchmark files)
-z = np.load("data.npz", allow_pickle=True)
-X, gene_names, tf_names = z["X"].astype("float32"), list(z["genes"]), list(z["tfs"])
+X, gene_names = scenic_rs.read_cellranger("sample/outs/filtered_feature_bc_matrix")
+# X, gene_names = scenic_rs.read_cellranger("sample/outs/filtered_feature_bc_matrix.h5")
 
-# ...or from an .h5ad (AnnData), e.g. the TKO/DKO/WT data (needs `scanpy`)
-import scanpy as sc
-adata = sc.read_h5ad("counts.h5ad")
-Xc = adata.layers["counts"]                                   # raw counts (your layer may differ)
-X = np.asarray(Xc.todense() if hasattr(Xc, "todense") else Xc, dtype="float32")  # cells × genes
-gene_names = adata.var_names.tolist()
+# TFs = a TF list (e.g. allTFs_hg38.txt from aertslab) intersected with the genes present
 tf_names = [g for g in open("allTFs_hg38.txt").read().split() if g in set(gene_names)]
 ```
+
+Already have an AnnData `.h5ad` (e.g. a scanpy-processed object)? Use its matrix
+directly: `X = np.asarray(adata.layers["counts"].todense(), dtype="float32")` and
+`gene_names = adata.var_names.tolist()`.
 
 Then run the pipeline (no Dask):
 
