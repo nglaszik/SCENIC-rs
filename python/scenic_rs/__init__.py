@@ -1,12 +1,21 @@
 """scenic-rs: fast Rust backend for the SCENIC pipeline.
 
-GRN inference (GENIE3 / GRNBoost2) and regulon scoring (AUCell).
+GRN inference (GENIE3 / GRNBoost2), cisTarget pruning (ctx) and regulon scoring
+(AUCell) — the whole pipeline in Rust, no Dask.
 """
+import collections
+
 from ._core import genie3 as _genie3
 from ._core import grnboost2 as _grnboost2
 from ._core import aucell as _aucell
+from ._core import ctx as _ctx
+from ._core import RankingDb
 
-__all__ = ["genie3", "grnboost2", "aucell"]
+__all__ = ["genie3", "grnboost2", "aucell", "ctx", "RankingDb", "Regulon"]
+
+#: A pruned regulon. ``genes``/``weights`` are the leading-edge target genes and
+#: their (max) importances; ``activating`` is True for "(+)" regulons.
+Regulon = collections.namedtuple("Regulon", "name tf activating genes weights nes")
 
 
 def _to_frame(tf, target, importance, as_frame):
@@ -48,6 +57,48 @@ def grnboost2(expr, gene_names, tf_names, n_estimators=5000, learning_rate=0.01,
                                  learning_rate, max_depth, str(max_features),
                                  subsample, min_samples_leaf, early_stop_window, seed)
     return _to_frame(tf, target, imp, as_frame)
+
+
+def _as_db(d):
+    if isinstance(d, RankingDb):
+        return d
+    if isinstance(d, (tuple, list)):
+        return RankingDb(str(d[0]), str(d[1]))
+    import os
+    return RankingDb(str(d), os.path.basename(str(d)))
+
+
+def ctx(adjacencies, expr, gene_names, dbs, motif_annotations, *,
+        thresholds=None, top_n_targets=None, top_n_regulators=None, min_genes=20,
+        rho_threshold=0.03, mask_dropouts=False, keep_only_activating=True,
+        rank_threshold=5000, auc_threshold=0.05, nes_threshold=3.0,
+        motif_similarity_fdr=0.001, orthologous_identity_threshold=0.0):
+    """cisTarget step: prune GRN adjacencies to motif-supported regulons.
+
+    adjacencies : the GRN output — a DataFrame with TF/target/importance columns
+        (as returned by ``grnboost2``/``genie3``), or a ``(tf, target, importance)``
+        tuple of equal-length sequences.
+    dbs : ranking databases — ``RankingDb`` objects, ``(path, name)`` pairs, or
+        plain feather paths (name derived from the filename).
+    motif_annotations : path to the motif2TF ``.tbl`` snapshot.
+    Returns a list of :class:`Regulon`.
+    """
+    import numpy as np
+
+    X = np.ascontiguousarray(expr, dtype=np.float32)
+    if hasattr(adjacencies, "columns"):
+        tf = adjacencies["TF"].tolist()
+        target = adjacencies["target"].tolist()
+        imp = adjacencies["importance"].astype(float).tolist()
+    else:
+        tf, target, imp = adjacencies
+        tf, target, imp = list(tf), list(target), [float(v) for v in imp]
+    db_objs = [_as_db(d) for d in dbs]
+    regs = _ctx(tf, target, imp, X, list(gene_names), db_objs, str(motif_annotations),
+                thresholds, top_n_targets, top_n_regulators, min_genes, rho_threshold,
+                mask_dropouts, keep_only_activating, rank_threshold, auc_threshold,
+                nes_threshold, motif_similarity_fdr, orthologous_identity_threshold)
+    return [Regulon(*r) for r in regs]
 
 
 def aucell(expr, gene_names, regulons, auc_max_rank=None, as_frame=True):
