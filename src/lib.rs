@@ -3,6 +3,10 @@ use pyo3::prelude::*;
 use std::collections::HashMap;
 
 mod aucell;
+mod ctx;
+mod ctxdb;
+mod ctxmod;
+mod ctxprune;
 mod forest;
 mod genie3;
 mod grnboost2;
@@ -140,10 +144,237 @@ fn aucell_py(
     Ok((regulon_names, flat, n_cells, regulons.len()))
 }
 
+// ---- ctx (cisTarget) enrichment math — exposed for parity testing vs ctxcore ----
+
+/// Per-motif AUCs and NES for a module's per-motif rankings.
+/// `rankings`: (n_motifs, n_genes) int32, 0-based ranks. Returns (aucs, ness).
+#[pyfunction]
+#[pyo3(name = "_ctx_aucs_nes", signature = (rankings, weights, total_genes, auc_threshold=0.05))]
+fn ctx_aucs_nes_py(
+    py: Python<'_>,
+    rankings: PyReadonlyArray2<i32>,
+    weights: Vec<f64>,
+    total_genes: usize,
+    auc_threshold: f64,
+) -> (Vec<f64>, Vec<f64>) {
+    let arr = rankings.as_array();
+    let (n_motifs, n_genes) = (arr.shape()[0], arr.shape()[1]);
+    let flat: Vec<i32> = arr.iter().copied().collect();
+    py.allow_threads(|| {
+        let a = ctx::aucs(&flat, n_motifs, n_genes, &weights, total_genes, auc_threshold);
+        let nes = ctx::nes(&a);
+        (a, nes)
+    })
+}
+
+/// Per-motif leading-edge critical point (rank_at_max). `rankings`: (n_motifs,
+/// n_genes) int32. Returns one rank_at_max per motif (argmax of rcc - avg2stdrcc).
+#[pyfunction]
+#[pyo3(name = "_ctx_rank_at_max", signature = (rankings, weights, rank_threshold))]
+fn ctx_rank_at_max_py(
+    py: Python<'_>,
+    rankings: PyReadonlyArray2<i32>,
+    weights: Vec<f64>,
+    rank_threshold: usize,
+) -> Vec<usize> {
+    let arr = rankings.as_array();
+    let (n_motifs, n_genes) = (arr.shape()[0], arr.shape()[1]);
+    let flat: Vec<i32> = arr.iter().copied().collect();
+    py.allow_threads(|| {
+        let rccs = ctx::recovery_curves(&flat, n_motifs, n_genes, &weights, rank_threshold);
+        let a2s = ctx::avg2std_rcc(&rccs, n_motifs, rank_threshold);
+        ctx::rank_at_max(&rccs, n_motifs, rank_threshold, &a2s)
+    })
+}
+
+/// A cisTarget ranking database (feather), loaded into memory. Provides per-module
+/// motif enrichment (AUC/NES) matching ctxcore.
+#[pyclass(name = "RankingDb")]
+struct PyRankingDb {
+    inner: ctxdb::RankingDb,
+}
+
+#[pymethods]
+impl PyRankingDb {
+    #[new]
+    fn new(path: &str, name: &str) -> PyResult<Self> {
+        let inner = ctxdb::RankingDb::open(path, name)
+            .map_err(pyo3::exceptions::PyValueError::new_err)?;
+        Ok(PyRankingDb { inner })
+    }
+
+    #[getter]
+    fn name(&self) -> &str {
+        &self.inner.name
+    }
+    #[getter]
+    fn total_genes(&self) -> usize {
+        self.inner.total_genes
+    }
+    #[getter]
+    fn n_motifs(&self) -> usize {
+        self.inner.n_motifs
+    }
+    #[getter]
+    fn n_genes(&self) -> usize {
+        self.inner.n_genes
+    }
+    #[getter]
+    fn motif_names(&self) -> Vec<String> {
+        self.inner.motif_names.clone()
+    }
+    #[getter]
+    fn genes(&self) -> Vec<String> {
+        self.inner.gene_list()
+    }
+
+    /// Gather rankings for a gene set: (present_genes, flat motif-major i32
+    /// rankings of length n_motifs * len(present)). For debugging/parity checks.
+    fn load(&self, genes: Vec<String>) -> (Vec<String>, Vec<i32>) {
+        self.inner.load_module(&genes)
+    }
+
+    /// Enrich a gene set against every motif. `gene2weight` optional (default
+    /// weight 1.0 = ctxcore's unweighted recovery). Returns
+    /// (present_genes, motif_names, aucs, ness).
+    #[pyo3(signature = (genes, gene2weight=None, auc_threshold=0.05))]
+    fn enrich(
+        &self,
+        py: Python<'_>,
+        genes: Vec<String>,
+        gene2weight: Option<HashMap<String, f64>>,
+        auc_threshold: f64,
+    ) -> (Vec<String>, Vec<String>, Vec<f64>, Vec<f64>) {
+        let (present, rankings) = self.inner.load_module(&genes);
+        let weights: Vec<f64> = match &gene2weight {
+            Some(w) => present.iter().map(|g| *w.get(g).unwrap_or(&1.0)).collect(),
+            None => vec![1.0; present.len()],
+        };
+        let ng = present.len();
+        let (aucs, ness) = py.allow_threads(|| {
+            let a = ctx::aucs(&rankings, self.inner.n_motifs, ng, &weights,
+                              self.inner.total_genes, auc_threshold);
+            let n = ctx::nes(&a);
+            (a, n)
+        });
+        (present, self.inner.motif_names.clone(), aucs, ness)
+    }
+}
+
+/// Generate co-expression modules from GRN adjacencies (pyscenic
+/// modules_from_adjacencies). Returns list of (tf, activating, genes, weights).
+#[pyfunction]
+#[pyo3(name = "_ctx_modules", signature = (adj_tf, adj_target, adj_importance, expr, gene_names,
+       thresholds=None, top_n_targets=None, top_n_regulators=None, min_genes=20,
+       rho_threshold=0.03, mask_dropouts=false, keep_only_activating=true))]
+#[allow(clippy::too_many_arguments)]
+fn ctx_modules_py(
+    py: Python<'_>,
+    adj_tf: Vec<String>,
+    adj_target: Vec<String>,
+    adj_importance: Vec<f64>,
+    expr: PyReadonlyArray2<f32>,
+    gene_names: Vec<String>,
+    thresholds: Option<Vec<f64>>,
+    top_n_targets: Option<Vec<usize>>,
+    top_n_regulators: Option<Vec<usize>>,
+    min_genes: usize,
+    rho_threshold: f64,
+    mask_dropouts: bool,
+    keep_only_activating: bool,
+) -> Vec<(String, bool, Vec<String>, Vec<f64>)> {
+    let arr = expr.as_array();
+    let (n_cells, n_genes) = (arr.shape()[0], arr.shape()[1]);
+    let expr_vec: Vec<f32> = arr.iter().copied().collect();
+    let thresholds = thresholds.unwrap_or_else(|| vec![0.75, 0.90]);
+    let top_n_targets = top_n_targets.unwrap_or_else(|| vec![50]);
+    let top_n_regulators = top_n_regulators.unwrap_or_else(|| vec![5, 10, 50]);
+    let mods = py.allow_threads(|| {
+        ctxmod::modules_from_adjacencies(
+            &adj_tf, &adj_target, &adj_importance, &expr_vec, n_cells, n_genes, &gene_names,
+            &thresholds, &top_n_targets, &top_n_regulators, min_genes, rho_threshold,
+            mask_dropouts, keep_only_activating,
+        )
+    });
+    mods.into_iter()
+        .map(|m| {
+            let genes = m.gene2weight.iter().map(|(g, _)| g.clone()).collect();
+            let weights = m.gene2weight.iter().map(|(_, w)| *w).collect();
+            (m.tf, m.activating, genes, weights)
+        })
+        .collect()
+}
+
+/// Full ctx (cisTarget) step: modules from adjacencies -> motif enrichment ->
+/// prune to TF-annotated enriched motifs -> regulons. Returns list of
+/// (name, tf, activating, genes, weights, nes).
+#[pyfunction]
+#[pyo3(name = "ctx", signature = (adj_tf, adj_target, adj_importance, expr, gene_names, dbs,
+       motif_annotations, thresholds=None, top_n_targets=None, top_n_regulators=None,
+       min_genes=20, rho_threshold=0.03, mask_dropouts=false, keep_only_activating=true,
+       rank_threshold=5000, auc_threshold=0.05, nes_threshold=3.0,
+       motif_similarity_fdr=0.001, orthologous_identity_threshold=0.0))]
+#[allow(clippy::too_many_arguments)]
+fn ctx_py(
+    adj_tf: Vec<String>,
+    adj_target: Vec<String>,
+    adj_importance: Vec<f64>,
+    expr: PyReadonlyArray2<f32>,
+    gene_names: Vec<String>,
+    dbs: Vec<PyRef<PyRankingDb>>,
+    motif_annotations: &str,
+    thresholds: Option<Vec<f64>>,
+    top_n_targets: Option<Vec<usize>>,
+    top_n_regulators: Option<Vec<usize>>,
+    min_genes: usize,
+    rho_threshold: f64,
+    mask_dropouts: bool,
+    keep_only_activating: bool,
+    rank_threshold: usize,
+    auc_threshold: f64,
+    nes_threshold: f64,
+    motif_similarity_fdr: f64,
+    orthologous_identity_threshold: f64,
+) -> PyResult<Vec<(String, String, bool, Vec<String>, Vec<f64>, f64)>> {
+    let arr = expr.as_array();
+    let (n_cells, n_genes) = (arr.shape()[0], arr.shape()[1]);
+    let expr_vec: Vec<f32> = arr.iter().copied().collect();
+    let thresholds = thresholds.unwrap_or_else(|| vec![0.75, 0.90]);
+    let top_n_targets = top_n_targets.unwrap_or_else(|| vec![50]);
+    let top_n_regulators = top_n_regulators.unwrap_or_else(|| vec![5, 10, 50]);
+
+    let ann = ctxprune::MotifAnnotations::load(
+        motif_annotations, motif_similarity_fdr, orthologous_identity_threshold)
+        .map_err(pyo3::exceptions::PyValueError::new_err)?;
+
+    let modules = ctxmod::modules_from_adjacencies(
+        &adj_tf, &adj_target, &adj_importance, &expr_vec, n_cells, n_genes, &gene_names,
+        &thresholds, &top_n_targets, &top_n_regulators, min_genes, rho_threshold,
+        mask_dropouts, keep_only_activating);
+
+    let db_refs: Vec<&ctxdb::RankingDb> = dbs.iter().map(|d| &d.inner).collect();
+    let regulons = ctxprune::derive_regulons(
+        &db_refs, &modules, &ann, rank_threshold, auc_threshold, nes_threshold);
+
+    Ok(regulons
+        .into_iter()
+        .map(|r| {
+            let genes = r.gene2weight.iter().map(|(g, _)| g.clone()).collect();
+            let weights = r.gene2weight.iter().map(|(_, w)| *w).collect();
+            (r.name, r.tf, r.activating, genes, weights, r.nes)
+        })
+        .collect())
+}
+
 #[pymodule]
 fn _core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(genie3_py, m)?)?;
     m.add_function(wrap_pyfunction!(grnboost2_py, m)?)?;
     m.add_function(wrap_pyfunction!(aucell_py, m)?)?;
+    m.add_function(wrap_pyfunction!(ctx_aucs_nes_py, m)?)?;
+    m.add_function(wrap_pyfunction!(ctx_rank_at_max_py, m)?)?;
+    m.add_function(wrap_pyfunction!(ctx_modules_py, m)?)?;
+    m.add_function(wrap_pyfunction!(ctx_py, m)?)?;
+    m.add_class::<PyRankingDb>()?;
     Ok(())
 }
