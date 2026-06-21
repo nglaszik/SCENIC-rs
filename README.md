@@ -1,6 +1,6 @@
 # scenic-rs
 
-A blazingly-fast Rust backend for the [SCENIC](https://github.com/aertslab/pySCENIC)
+A Rust backend for the [SCENIC](https://github.com/aertslab/pySCENIC)
 single-cell gene regulatory network (GRN) pipeline.
 
 **Status:** the **entire** SCENIC pipeline reimplemented as a Rust core with
@@ -22,8 +22,29 @@ scenic-rs is a self-contained Rust core that **removes Dask entirely** and
 reproduces pySCENIC's outputs as a `pip`-installable drop-in. Because it uses
 shared-memory threads (`rayon`) instead of worker processes, **memory stays flat
 as you add cores** while pySCENIC's grows linearly — the headline win, on top of
-no dependency pins and a much faster AUCell. See
+no dependency pins. See
 [Validation & benchmarks](#validation--benchmarks-vs-real-pyscenic).
+
+## Requirements
+
+**Runtime** (using scenic-rs)
+- Python ≥ 3.9
+- `numpy`, `pandas` — pulled in automatically as dependencies
+- For the **`ctx`** step only: the cisTarget **ranking databases**
+  (`*.genes_vs_motifs.rankings.feather`) and the **motif2TF annotations** (`.tbl`),
+  from [resources.aertslab.org/cistarget](https://resources.aertslab.org/cistarget/)
+  (~1–2 GB; the exact same files pySCENIC uses). Not needed for GRN or AUCell.
+
+**Building from source**
+- A recent stable **Rust** toolchain (`cargo`/`rustc`) — ≥ 1.70 (tested on 1.86);
+  install via [rustup.rs](https://rustup.rs). The Arrow feather reader is pure
+  Rust, so no system C/Fortran libraries are required.
+- **maturin** ≥ 1.0 (`pip install maturin`)
+
+**Benchmarks / validation only** (optional)
+- A separate pySCENIC environment to compare against:
+  `python3.10 -m venv ~/venvs/pyscenic_clean && ~/venvs/pyscenic_clean/bin/pip install "numpy<1.24" "pandas<2" pyscenic`
+- `matplotlib` + `scipy` for the plotting and validation scripts
 
 ## Build
 
@@ -32,7 +53,7 @@ maturin develop --release          # builds the Rust core into the active env
 python examples/run_example.py
 ```
 
-## Use
+## Usage
 
 Full pipeline, all in-process, no Dask:
 
