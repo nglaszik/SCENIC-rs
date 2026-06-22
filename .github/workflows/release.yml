@@ -21,7 +21,6 @@ jobs:
         include:
           - { runner: ubuntu-22.04,   os: linux,   target: x86_64,  manylinux: auto }
           - { runner: ubuntu-22.04,   os: linux,   target: aarch64, manylinux: auto }
-          - { runner: macos-13,       os: macos,   target: x86_64 }
           - { runner: macos-14,       os: macos,   target: aarch64 }
           - { runner: windows-latest, os: windows, target: x64 }
     steps:
