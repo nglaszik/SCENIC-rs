@@ -11,32 +11,7 @@ from ._core import aucell as _aucell
 from ._core import ctx as _ctx
 from ._core import RankingDb
 
-__all__ = ["read_cellranger", "genie3", "grnboost2", "aucell", "ctx", "RankingDb",
-           "Regulon"]
-
-
-def read_cellranger(path, var_names="gene_symbols"):
-    """Load a Cell Ranger count matrix into the inputs scenic-rs needs.
-
-    path : a ``filtered_feature_bc_matrix`` directory (matrix.mtx[.gz] +
-        features/genes.tsv[.gz] + barcodes.tsv[.gz]) or a
-        ``filtered_feature_bc_matrix.h5`` file — i.e. Cell Ranger ``outs/``.
-    Returns ``(X, gene_names)``: X is a cells × genes float32 matrix of raw
-        counts and gene_names are gene symbols (deduplicated). Needs ``scanpy``.
-
-    Cell Ranger's filtered matrix is already cell-called; for SCENIC you feed raw
-    counts, so no normalization is applied. Add your own QC (e.g. drop low-count
-    cells / rarely-expressed genes) before the pipeline if desired.
-    """
-    import numpy as np
-    import scanpy as sc
-
-    p = str(path)
-    adata = sc.read_10x_h5(p) if p.endswith(".h5") else sc.read_10x_mtx(p, var_names=var_names)
-    adata.var_names_make_unique()
-    X = adata.X
-    X = np.asarray(X.todense() if hasattr(X, "todense") else X, dtype="float32")
-    return X, adata.var_names.tolist()
+__all__ = ["genie3", "grnboost2", "aucell", "ctx", "RankingDb", "Regulon"]
 
 #: A pruned regulon. ``genes``/``weights`` are the leading-edge target genes and
 #: their (max) importances; ``activating`` is True for "(+)" regulons.

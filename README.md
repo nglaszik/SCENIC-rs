@@ -15,50 +15,50 @@ as a quick project!
 **Runtime** (using scenic-rs)
 - Python ≥ 3.9
 - `numpy`, `pandas`
-- `scanpy` — only for `read_cellranger` (loading Cell Ranger / `.h5ad` data); not
-  needed if you build the matrix yourself
+- `scanpy` (optional) — only if you use it to load your data (Cell Ranger / `.h5ad`);
+  scenic-rs itself just takes a numpy matrix + gene/TF names
 - For the **`ctx`** step only: the cisTarget **ranking databases**
   (`*.genes_vs_motifs.rankings.feather`) and the **motif2TF annotations** (`.tbl`),
   from [resources.aertslab.org/cistarget](https://resources.aertslab.org/cistarget/)
 
-**Building from source**
-- One needs to build the Rust backend from source before running scenic-rs.
+**From source** (optional — only for development; `pip install` uses prebuilt wheels)
 - A recent stable **Rust** toolchain (`cargo`/`rustc`) — ≥ 1.70 (tested on 1.86);
   install via [rustup.rs](https://rustup.rs).
-- **maturin** ≥ 1.0 (`pip install maturin`)
-- `maturin develop --release`
+- **maturin** ≥ 1.0 (`pip install maturin`), then `maturin develop --release`
 
 **Benchmarks / validation only** (optional)
 - A separate pySCENIC environment to compare against:
   `python3.10 -m venv ~/venvs/pyscenic_clean && ~/venvs/pyscenic_clean/bin/pip install "numpy<1.24" "pandas<2" pyscenic`
 - `matplotlib` + `scipy` for the plotting and validation scripts
 
-## Build
+## Install
 
 ```bash
-maturin develop --release          # builds the Rust core into the active env
-python examples/run_example.py
+pip install scenic-rs   # prebuilt wheels: Linux / macOS / Windows, Python >=3.9
 ```
 
 ## Usage
 
-scenic-rs starts from **Cell Ranger** output — the `filtered_feature_bc_matrix`
-directory (or `.h5`) in `outs/`. `read_cellranger` loads it into the cells × genes
-`float32` matrix and gene symbols scenic-rs needs (raw counts; uses `scanpy`):
+scenic-rs takes a **cells × genes** `float32` matrix plus the gene names and a TF
+list — load these however you like (e.g. with `scanpy`). Raw counts; do your own
+cell/gene QC first. From Cell Ranger output:
 
 ```python
-import scenic_rs
+import numpy as np, scanpy as sc
 
-X, gene_names = scenic_rs.read_cellranger("sample/outs/filtered_feature_bc_matrix")
-# X, gene_names = scenic_rs.read_cellranger("sample/outs/filtered_feature_bc_matrix.h5")
+adata = sc.read_10x_mtx("sample/outs/filtered_feature_bc_matrix")   # or sc.read_10x_h5(".../filtered_feature_bc_matrix.h5")
+adata.var_names_make_unique()
+sc.pp.filter_genes(adata, min_cells=3)                              # basic QC (filter cells/genes as you see fit)
+X = np.asarray(adata.X.todense() if hasattr(adata.X, "todense") else adata.X, dtype="float32")
+gene_names = adata.var_names.tolist()
+
+# ...or from an existing AnnData .h5ad:
+# adata = sc.read_h5ad("counts.h5ad")
+# X = np.asarray(adata.layers["counts"].todense(), dtype="float32"); gene_names = adata.var_names.tolist()
 
 # TFs = a TF list (e.g. allTFs_hg38.txt from aertslab) intersected with the genes present
 tf_names = [g for g in open("allTFs_hg38.txt").read().split() if g in set(gene_names)]
 ```
-
-Already have an AnnData `.h5ad` (e.g. a scanpy-processed object)? Use its matrix
-directly: `X = np.asarray(adata.layers["counts"].todense(), dtype="float32")` and
-`gene_names = adata.var_names.tolist()`.
 
 Then run the pipeline:
 
