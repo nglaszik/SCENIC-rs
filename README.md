@@ -26,6 +26,7 @@ as a quick project!
 - A recent stable **Rust** toolchain (`cargo`/`rustc`) — ≥ 1.70 (tested on 1.86);
   install via [rustup.rs](https://rustup.rs).
 - **maturin** ≥ 1.0 (`pip install maturin`)
+- `maturin develop --release`
 
 **Benchmarks / validation only** (optional)
 - A separate pySCENIC environment to compare against:
@@ -59,7 +60,7 @@ Already have an AnnData `.h5ad` (e.g. a scanpy-processed object)? Use its matrix
 directly: `X = np.asarray(adata.layers["counts"].todense(), dtype="float32")` and
 `gene_names = adata.var_names.tolist()`.
 
-Then run the pipeline (no Dask):
+Then run the pipeline:
 
 ```python
 from scenic_rs import grnboost2, genie3, aucell, RankingDb, ctx
@@ -107,13 +108,15 @@ grows ~linearly in pySCENIC (per-worker copies). Ratios = pySCENIC / scenic-rs:
 
 | step | memory: 16c → 96c | speed (equal cores) |
 |---|---|---|
-| GRN / GRNBoost2 | **13× → 26×** less | 0.9× @16c → **2.8× @96c** |
-| GRN / GENIE3 | **30× → 123×** less | ≈ par (compute-bound) |
-| ctx / cisTarget | **14× → 26×** less | **~10× faster** (flat vs cores) |
-| AUCell | **18× → 51×** less | **~170× faster** (algorithm) |
+| GRN / GRNBoost2 | **13× → 26×** less | **2.8× faster @96c** |
+| GRN / GENIE3 | **30× → 123×** less | equivalent |
+| ctx / cisTarget | **14× → 26×** less | **~10× faster** |
+| AUCell | **18× → 51×** less | **~170× faster** |
 
 At 96 cores pySCENIC peaks at ~11.7 GB (GRNBoost2), ~20.5 GB (GENIE3) and ~17 GB
 (ctx); scenic-rs stays at ~0.45 GB, ~0.17 GB and ~0.66 GB respectively.
+
+Speedup on GRNBoost2 is likely due to Dask setup, relatively negligible on larger datasets.
 
 ![peak memory vs cores](bench/figures/mem_scaling.png)
 ![wall-clock vs cores](bench/figures/time_scaling.png)
@@ -136,3 +139,18 @@ PYTHONPATH=python ~/venvs/pyscenic_clean/bin/python bench/validate_ctx_regulons.
 python bench/plot_benchmark.py        # concordance.png, grn_per_target.png
 python bench/plot_mem_benchmark.py    # mem_scaling.png, time_scaling.png (all steps)
 ```
+
+## License & attribution
+
+**GPL-3.0-or-later.** scenic-rs is a Rust reimplementation of, and a derivative
+work of, the GPL-3.0 projects [pySCENIC](https://github.com/aertslab/pySCENIC)
+and [ctxcore](https://github.com/aertslab/ctxcore) (aertslab, VIB-KU Leuven) —
+their GRN/cisTarget/AUCell workflow and the recovery/NES/module/pruning logic. It is an
+independent project, **not affiliated with or endorsed by aertslab**. See
+[`NOTICE`](NOTICE) for details.
+
+If you use scenic-rs, please cite the original SCENIC work:
+
+- Aibar *et al.* (2017) *SCENIC: single-cell regulatory network inference and clustering.* Nature Methods.
+- Van de Sande *et al.* (2020) *A scalable SCENIC workflow for single-cell gene regulatory network analysis.* Nature Protocols.
+- Moerman *et al.* (2019) *GRNBoost2 and Arboreto…* Bioinformatics.

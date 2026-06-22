@@ -93,6 +93,10 @@ ctxcore primitives (recovery/aucs/leading_edge) are correct in isolation; the bu
 pyscenic's row wiring. scenic-rs aligns rccs/rankings with their motifs correctly, so we
 validate vs a corrected ctxcore-primitive reference + exact NES parity, not bug-for-bug.
 
+Independently reported upstream as pySCENIC issue #635 / PR #636 (open, not merged as of
+2026-06; fix = `annotated_features.reindex(enriched_features.index)` after the dedup). So
+it's still live in 0.12.1 + master. See docs/pyscenic_ctx_bug_report.md.
+
 ## Rust stages (each gated on parity vs reference)
 1. Feather reader (mmap int16 motifs×genes + gene index + motif names). Dep: arrow2/polars.
 2. Enrichment math: weighted_auc1d + NES + leading edge. Unit-test vs ctxcore.recovery on synthetic ranks.

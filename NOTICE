@@ -1,0 +1,42 @@
+scenic-rs
+Copyright (C) 2026 Nandor Laszik
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See the LICENSE file for the full text.
+
+-------------------------------------------------------------------------------
+Derivation and attribution
+-------------------------------------------------------------------------------
+
+scenic-rs is a Rust reimplementation of the SCENIC single-cell gene regulatory
+network pipeline. It is a DERIVATIVE WORK of the following GPL-3.0 projects from
+the Laboratory of Computational Biology (aertslab), VIB-KU Leuven, and is
+therefore distributed under the GPL-3.0-or-later:
+
+  * pySCENIC   - https://github.com/aertslab/pySCENIC   (GPL-3.0)
+                 the GRNBoost2/GENIE3 + cisTarget (ctx) + AUCell workflow and the
+                 module-generation / pruning logic (pyscenic/utils.py,
+                 pyscenic/transform.py) were closely followed.
+  * ctxcore    - https://github.com/aertslab/ctxcore    (GPL-3.0)
+                 the cisTarget recovery-curve / AUC / NES math, ranking-database
+                 layout, and regulon/gene-signature semantics (recovery.py,
+                 rnkdb.py, ctdb.py, genesig.py) were reimplemented from.
+
+GRN inference also follows the algorithms in arboreto and scikit-learn
+(GENIE3 = random forests; GRNBoost2 = stochastic gradient boosting).
+
+This is an independent project. It is not affiliated with, endorsed by, or an
+official release of aertslab / VIB-KU Leuven.
+
+-------------------------------------------------------------------------------
+Please cite the original SCENIC work
+-------------------------------------------------------------------------------
+
+  Aibar et al. (2017) "SCENIC: single-cell regulatory network inference and
+    clustering." Nature Methods 14, 1083-1086.
+  Van de Sande et al. (2020) "A scalable SCENIC workflow for single-cell gene
+    regulatory network analysis." Nature Protocols 15, 2247-2276.
+  Moerman et al. (2019) "GRNBoost2 and Arboreto: efficient and scalable
+    inference of gene regulatory networks." Bioinformatics 35, 2159-2161.

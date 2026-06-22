@@ -5,9 +5,15 @@ build-backend = "maturin"
 [project]
 name = "scenic-rs"
 version = "0.1.0"
-description = "Blazingly fast Rust backend for SCENIC GRN inference (GENIE3)"
+description = "Rust implementation of the SCENIC single-cell GRN pipeline (GRN + cisTarget + AUCell)"
 requires-python = ">=3.9"
+license = "GPL-3.0-or-later"
 dependencies = ["numpy", "pandas"]
+
+[project.optional-dependencies]
+# scanpy is only needed for read_cellranger (loading Cell Ranger / .h5ad data):
+#   pip install "scenic-rs[cellranger]"
+cellranger = ["scanpy"]
 
 [tool.maturin]
 python-source = "python"
