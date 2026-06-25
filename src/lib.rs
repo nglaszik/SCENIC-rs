@@ -133,8 +133,7 @@ fn grnboost2_py(
         early_stop_window,
         seed,
     };
-    let edges =
-        py.detach(|| run_grnboost2(&expr_vec, n_cells, n_genes, &regulators, &params));
+    let edges = py.detach(|| run_grnboost2(&expr_vec, n_cells, n_genes, &regulators, &params));
     Ok(names_for(&edges, &gene_names))
 }
 
