@@ -5,7 +5,7 @@
 //! the weighted impurity (variance) decrease for the feature chosen at each split.
 
 use rand::seq::SliceRandom;
-use rand::Rng;
+use rand::RngExt;
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 
@@ -138,7 +138,7 @@ pub fn forest_importance(
     let mut rng = ChaCha8Rng::seed_from_u64(seed);
 
     for _ in 0..n_trees {
-        let sample: Vec<usize> = (0..n_cells).map(|_| rng.gen_range(0..n_cells)).collect();
+        let sample: Vec<usize> = (0..n_cells).map(|_| rng.random_range(0..n_cells)).collect();
         let mut imp = vec![0f64; n_features];
         tree_importance(cols, y, &sample, mf, min_leaf, &mut rng, &mut imp);
         let s: f64 = imp.iter().sum();
