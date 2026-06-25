@@ -15,4 +15,4 @@ numpy = "0.29"
 rayon = "1"
 rand = "0.8"
 rand_chacha = "0.3"
-arrow = { version = "53", default-features = false, features = ["ipc", "ipc_compression"] }
+arrow = { version = "59", default-features = false, features = ["ipc", "ipc_compression"] }
