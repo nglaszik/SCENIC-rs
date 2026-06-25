@@ -99,6 +99,13 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist
+          # Disable PEP 740 attestations: release.yml runs as a *reusable*
+          # workflow (called by release-please.yml), so the attestation's signing
+          # identity is release-please.yml, which doesn't match the PyPI Trusted
+          # Publisher (release.yml) and gets rejected. Trusted-publishing AUTH is
+          # unaffected. GitHub provenance is still recorded by the
+          # attest-build-provenance step in the wheels job.
+          attestations: false
 
   docker:
     name: build & push image (GHCR)
