@@ -1,0 +1,24 @@
+# Minimal conda environment for USING scenic-rs.
+#
+# scenic-rs ships as a prebuilt abi3 wheel whose only dependencies are numpy and
+# pandas (both unpinned), so it installs cleanly into a conda env alongside the
+# rest of your single-cell stack -- scanpy here -- without holding anything back.
+# That coexistence is the whole point; this file demonstrates it.
+#
+#   conda env create -f environment.yml
+#   conda activate scenic-rs
+#
+# This is a loose on-ramp, not a frozen deployment. For a fully pinned,
+# reproducible setup (e.g. for a Nextflow/Snakemake pipeline), use the published
+# container image instead -- see the README.
+name: scenic-rs
+channels:
+  - conda-forge
+dependencies:
+  - python >=3.9
+  - numpy
+  - pandas
+  - scanpy # optional, but shows scenic-rs running next to the modern stack
+  - pip
+  - pip:
+      - scenic-rs

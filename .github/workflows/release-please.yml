@@ -38,6 +38,7 @@ jobs:
       contents: write # attach wheels to the GitHub Release
       id-token: write # PyPI Trusted Publishing (OIDC) + provenance attestation
       attestations: write
+      packages: write # push the Docker image to GHCR
     uses: ./.github/workflows/release.yml
     with:
       publish: true

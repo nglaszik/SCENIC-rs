@@ -41,6 +41,30 @@ as a quick project!
 pip install scenic-rs   # prebuilt wheels: Linux / macOS / Windows, Python >=3.9
 ```
 
+scenic-rs depends only on (unpinned) `numpy` and `pandas`, so it drops into an
+existing environment — including a `scanpy` env — without forcing a downgrade.
+
+**conda** — a ready-made environment that includes scanpy:
+
+```bash
+conda env create -f environment.yml   # then: conda activate scenic-rs
+```
+
+**Docker / Nextflow / Singularity** — a version-pinned image is published per
+release for reproducible pipelines:
+
+```bash
+docker pull ghcr.io/nglaszik/scenic-rs:latest      # or a pinned tag, e.g. :0.1.1
+```
+
+```groovy
+// In a Nextflow process, just point at the image:
+process scenic {
+    container 'ghcr.io/nglaszik/scenic-rs:0.1.1'
+    // ... your script that `import scenic_rs`
+}
+```
+
 ## Usage
 
 scenic-rs takes a **cells × genes** `float32` matrix plus the gene names and a TF
