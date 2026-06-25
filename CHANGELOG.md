@@ -4,6 +4,13 @@ This file is maintained automatically by [release-please](https://github.com/goo
 from Conventional Commit messages (`feat:`, `fix:`, ...). New version sections
 are added above this note when a release PR is merged.
 
+## [0.2.2](https://github.com/nglaszik/SCENIC-rs/compare/v0.2.1...v0.2.2) (2026-06-25)
+
+
+### Bug Fixes
+
+* disable PyPI PEP 740 attestations to unblock publishing ([ec2358c](https://github.com/nglaszik/SCENIC-rs/commit/ec2358c1aae1f8883a440e533aefdb784ccc8e1a))
+
 ## [0.2.1](https://github.com/nglaszik/SCENIC-rs/compare/v0.2.0...v0.2.1) (2026-06-25)
 
 
