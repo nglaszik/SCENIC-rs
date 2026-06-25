@@ -135,7 +135,8 @@ jobs:
       - name: Install numpy/pandas (pre-release allowed) + the abi3 wheel
         run: |
           pip install --pre numpy pandas || pip install numpy pandas
-          pip install --no-deps dist/*.whl pytest
+          pip install pytest                  # with its own deps (pluggy, ...)
+          pip install --no-deps dist/*.whl    # --no-deps applies ONLY to the wheel
       - run: python -c "import scenic_rs; print('scenic_rs imports on', __import__('sys').version)"
       - run: pytest
 
