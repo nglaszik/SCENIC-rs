@@ -16,9 +16,28 @@ license = "GPL-3.0-or-later"
 # it runs the test suite against numpy 1.26 + numpy 2.x, old/new pandas, and an
 # env with scanpy installed. If a pin ever sneaks in, that matrix goes red.
 dependencies = ["numpy", "pandas"]
+# Trove classifiers. The Python ones populate the pypi/pyversions badge (shields
+# reads these classifiers, not requires-python). No "License ::" classifier --
+# the SPDX `license` field above already declares it (PEP 639).
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Rust",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "maturin>=1.0,<2.0"]
+
+[project.urls]
+Homepage = "https://github.com/nglaszik/SCENIC-rs"
+Repository = "https://github.com/nglaszik/SCENIC-rs"
+Issues = "https://github.com/nglaszik/SCENIC-rs/issues"
 
 [tool.maturin]
 python-source = "python"
