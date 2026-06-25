@@ -66,7 +66,11 @@ fn tree_importance(
         for &f in feat_buf.iter().take(max_features) {
             let col = cols[f];
             let mut order = idx.clone();
-            order.sort_by(|&a, &b| col[a].partial_cmp(&col[b]).unwrap_or(std::cmp::Ordering::Equal));
+            order.sort_by(|&a, &b| {
+                col[a]
+                    .partial_cmp(&col[b])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
 
             let (mut ls, mut lss, mut ln) = (0f64, 0f64, 0usize);
             for k in 0..n - 1 {
@@ -89,7 +93,7 @@ fn tree_importance(
                 let left_imp = lss - ls * ls / ln as f64;
                 let right_imp = rss - rs * rs / rn as f64;
                 let dec = node_imp - left_imp - right_imp;
-                if best.map_or(true, |(_, _, bd)| dec > bd) {
+                if best.is_none_or(|(_, _, bd)| dec > bd) {
                     best = Some((f, (vf + vf_next) / 2.0, dec));
                 }
             }

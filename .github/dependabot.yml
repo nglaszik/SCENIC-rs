@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # Rust crates (pyo3, numpy, rayon, rand, arrow, ...). CI's cargo-deny + tests
+  # validate each bump PR automatically.
+  - package-ecosystem: cargo
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # GitHub Actions pinned in the workflows above.
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+
+  # Python build/dev tooling declared in pyproject (maturin, ruff, pytest).
+  - package-ecosystem: pip
+    directory: "/"
+    schedule:
+      interval: weekly

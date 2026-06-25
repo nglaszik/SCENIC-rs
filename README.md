@@ -1,5 +1,9 @@
 # scenic-rs
 
+[![CI](https://github.com/nglaszik/SCENIC-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/nglaszik/SCENIC-rs/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/scenic-rs.svg)](https://pypi.org/project/scenic-rs/)
+[![Python](https://img.shields.io/pypi/pyversions/scenic-rs.svg)](https://pypi.org/project/scenic-rs/)
+
 A memory-efficient Rust implementation of the [pySCENIC](https://github.com/aertslab/pySCENIC)
 single-cell gene regulatory network (GRN) pipeline. Not associated with the lab, just built this
 as a quick project!

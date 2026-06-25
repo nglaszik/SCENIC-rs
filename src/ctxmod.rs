@@ -100,8 +100,19 @@ fn make_module(
         order.push(tf.to_string());
     }
     w.insert(tf.to_string(), 1.0);
-    let gene2weight = order.into_iter().map(|g| { let v = w[&g]; (g, v) }).collect();
-    Module { tf: tf.to_string(), activating, context, gene2weight }
+    let gene2weight = order
+        .into_iter()
+        .map(|g| {
+            let v = w[&g];
+            (g, v)
+        })
+        .collect();
+    Module {
+        tf: tf.to_string(),
+        activating,
+        context,
+        gene2weight,
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -121,8 +132,11 @@ pub fn modules_from_adjacencies(
     mask_dropouts: bool,
     keep_only_activating: bool,
 ) -> Vec<Module> {
-    let gene_index: HashMap<&str, usize> =
-        gene_names.iter().enumerate().map(|(i, g)| (g.as_str(), i)).collect();
+    let gene_index: HashMap<&str, usize> = gene_names
+        .iter()
+        .enumerate()
+        .map(|(i, g)| (g.as_str(), i))
+        .collect();
     let n_edges = adj_tf.len();
 
     // --- correlation sign per edge (parallel over edges) ---
@@ -145,7 +159,10 @@ pub fn modules_from_adjacencies(
     // quantile thresholds computed on ALL edge importances (pyscenic uses the full df)
     let mut sorted_imp = adj_importance.to_vec();
     sorted_imp.sort_by(|a, b| a.total_cmp(b));
-    let thr_vals: Vec<f64> = thresholds.iter().map(|&q| quantile(&sorted_imp, q)).collect();
+    let thr_vals: Vec<f64> = thresholds
+        .iter()
+        .map(|&q| quantile(&sorted_imp, q))
+        .collect();
 
     let signs: &[i32] = if keep_only_activating { &[1] } else { &[1, -1] };
     let mut modules: Vec<Module> = Vec::new();
@@ -169,7 +186,9 @@ pub fn modules_from_adjacencies(
             let mut grp: HashMap<&str, Vec<(usize, f64)>> = HashMap::new();
             for &i in &sub {
                 if adj_importance[i] > thr {
-                    grp.entry(adj_tf[i].as_str()).or_default().push((i, adj_importance[i]));
+                    grp.entry(adj_tf[i].as_str())
+                        .or_default()
+                        .push((i, adj_importance[i]));
                 }
             }
             for (tf, rows) in &grp {
@@ -181,8 +200,10 @@ pub fn modules_from_adjacencies(
         for &n in top_n_targets {
             let ctx = format!("top{}", n);
             for (tf, idxs) in &by_tf {
-                let rows: Vec<(usize, f64)> =
-                    nlargest(idxs, adj_importance, n).iter().map(|&i| (i, adj_importance[i])).collect();
+                let rows: Vec<(usize, f64)> = nlargest(idxs, adj_importance, n)
+                    .iter()
+                    .map(|&i| (i, adj_importance[i]))
+                    .collect();
                 if !rows.is_empty() {
                     modules.push(make_module(tf, activating, ctx.clone(), &rows, adj_target));
                 }
@@ -193,9 +214,12 @@ pub fn modules_from_adjacencies(
         for &n in top_n_regulators {
             let ctx = format!("top{}perTarget", n);
             let mut regrp: HashMap<&str, Vec<(usize, f64)>> = HashMap::new();
-            for (_tgt, idxs) in &by_target {
+            for idxs in by_target.values() {
                 for &i in nlargest(idxs, adj_importance, n).iter() {
-                    regrp.entry(adj_tf[i].as_str()).or_default().push((i, adj_importance[i]));
+                    regrp
+                        .entry(adj_tf[i].as_str())
+                        .or_default()
+                        .push((i, adj_importance[i]));
                 }
             }
             for (tf, rows) in &regrp {
@@ -205,18 +229,17 @@ pub fn modules_from_adjacencies(
     }
 
     // filter by minimum gene count (unique genes incl. TF)
-    modules.into_iter().filter(|m| m.gene2weight.len() >= min_genes).collect()
+    modules
+        .into_iter()
+        .filter(|m| m.gene2weight.len() >= min_genes)
+        .collect()
 }
 
 /// Top-n edge indices by importance, ties broken by original (ascending index)
 /// order — matches pandas nlargest(keep="first").
 fn nlargest(idxs: &[usize], importance: &[f64], n: usize) -> Vec<usize> {
     let mut v = idxs.to_vec();
-    v.sort_by(|&a, &b| {
-        importance[b]
-            .total_cmp(&importance[a])
-            .then(a.cmp(&b))
-    });
+    v.sort_by(|&a, &b| importance[b].total_cmp(&importance[a]).then(a.cmp(&b)));
     v.truncate(n);
     v
 }

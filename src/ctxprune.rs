@@ -92,8 +92,10 @@ pub fn derive_regulons(
     // contributions. Inner math is sequential (parallelism is over modules) and
     // the leading edge is computed streaming, so peak memory per task is
     // O(rank_threshold), not the full n_motifs x rank_threshold recovery matrix.
-    let pairs: Vec<(&&RankingDb, &Module)> =
-        dbs.iter().flat_map(|db| modules.iter().map(move |m| (db, m))).collect();
+    let pairs: Vec<(&&RankingDb, &Module)> = dbs
+        .iter()
+        .flat_map(|db| modules.iter().map(move |m| (db, m)))
+        .collect();
 
     let per: Vec<Vec<((String, bool), Row)>> = pairs
         .par_iter()
@@ -113,31 +115,56 @@ pub fn derive_regulons(
 
             let n_motifs = db.n_motifs;
             let weights = vec![1.0; n_present]; // unweighted recovery (ctx default)
-            let aucs = ctx::aucs_seq(&rankings, n_motifs, n_present, &weights, db.total_genes, auc_threshold);
+            let aucs = ctx::aucs_seq(
+                &rankings,
+                n_motifs,
+                n_present,
+                &weights,
+                db.total_genes,
+                auc_threshold,
+            );
             let ness = ctx::nes(&aucs);
 
             // enriched + annotated-to-this-TF motifs
             let enriched: Vec<usize> = (0..n_motifs)
-                .filter(|&i| ness[i] >= nes_threshold && ann.get(&m.tf, &db.motif_names[i]).is_some())
+                .filter(|&i| {
+                    ness[i] >= nes_threshold && ann.get(&m.tf, &db.motif_names[i]).is_some()
+                })
                 .collect();
             if enriched.is_empty() {
                 return out;
             }
 
             // avg+2std over ALL motifs (streaming, O(rank_threshold) memory)
-            let a2s = ctx::avg2std_streaming(&rankings, n_motifs, n_present, &weights, rank_threshold);
-            let w_of: HashMap<&str, f64> =
-                m.gene2weight.iter().map(|(g, w)| (g.as_str(), *w)).collect();
+            let a2s =
+                ctx::avg2std_streaming(&rankings, n_motifs, n_present, &weights, rank_threshold);
+            let w_of: HashMap<&str, f64> = m
+                .gene2weight
+                .iter()
+                .map(|(g, w)| (g.as_str(), *w))
+                .collect();
 
             for &mi in &enriched {
                 // rank_at_max computed only for this enriched motif
                 let cutoff =
-                    ctx::rank_at_max_one(&rankings, mi, n_present, &weights, rank_threshold, &a2s) as i32;
+                    ctx::rank_at_max_one(&rankings, mi, n_present, &weights, rank_threshold, &a2s)
+                        as i32;
                 let target_genes: Vec<(String, f64)> = (0..n_present)
                     .filter(|&j| rankings[mi * n_present + j] <= cutoff)
-                    .map(|j| (present[j].clone(), *w_of.get(present[j].as_str()).unwrap_or(&1.0)))
+                    .map(|j| {
+                        (
+                            present[j].clone(),
+                            *w_of.get(present[j].as_str()).unwrap_or(&1.0),
+                        )
+                    })
                     .collect();
-                out.push(((m.tf.clone(), m.activating), Row { nes: ness[mi], target_genes }));
+                out.push((
+                    (m.tf.clone(), m.activating),
+                    Row {
+                        nes: ness[mi],
+                        target_genes,
+                    },
+                ));
             }
             out
         })

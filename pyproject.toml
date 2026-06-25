@@ -4,13 +4,36 @@ build-backend = "maturin"
 
 [project]
 name = "scenic-rs"
-version = "0.1.1"
+# Version is single-sourced from Cargo.toml (see [package].version) via maturin's
+# `dynamic` support, so it only ever lives in one place. release-please bumps it there.
+dynamic = ["version"]
 description = "Rust implementation of the SCENIC single-cell GRN pipeline (GRN + cisTarget + AUCell)"
 requires-python = ">=3.9"
 license = "GPL-3.0-or-later"
+# Keep this list minimal and UNPINNED on purpose: the heavy compute is in the
+# Rust abi3 extension, so there is no numba/Cython stack forcing an old numpy.
+# The CI compat matrix (.github/workflows/ci.yml) is what guards this claim --
+# it runs the test suite against numpy 1.26 + numpy 2.x, old/new pandas, and an
+# env with scanpy installed. If a pin ever sneaks in, that matrix goes red.
 dependencies = ["numpy", "pandas"]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "maturin>=1.0,<2.0"]
 
 [tool.maturin]
 python-source = "python"
 module-name = "scenic_rs._core"
 features = ["pyo3/extension-module"]
+
+[tool.ruff]
+# Lint the hand-written Python surface. The bench/ and examples/ scripts are
+# research/validation code with looser conventions; add them here when ready.
+include = ["python/**/*.py", "tests/**/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]  # line length is not worth gating CI on
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

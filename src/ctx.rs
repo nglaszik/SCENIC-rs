@@ -143,7 +143,11 @@ pub fn aucs_seq(
             let (mut cum, mut auc) = (0.0f64, 0.0f64);
             for i in 0..pairs.len() {
                 cum += pairs[i].1;
-                let next_x = if i + 1 < pairs.len() { pairs[i + 1].0 } else { rc as i32 };
+                let next_x = if i + 1 < pairs.len() {
+                    pairs[i + 1].0
+                } else {
+                    rc as i32
+                };
                 auc += (next_x - pairs[i].0) as f64 * cum;
             }
             if maxauc > 0.0 {
@@ -210,7 +214,9 @@ pub fn avg2std_streaming(
             sse[t] += d * d;
         }
     }
-    (0..rank_threshold).map(|t| mean[t] + 2.0 * (sse[t] / n).sqrt()).collect()
+    (0..rank_threshold)
+        .map(|t| mean[t] + 2.0 * (sse[t] / n).sqrt())
+        .collect()
 }
 
 /// Leading-edge critical point for a SINGLE motif: argmax_t (rcc[t] - avg2std[t]).

@@ -40,9 +40,7 @@ pub fn run_genie3(
             }
             let cols: Vec<&[f32]> = cand.iter().map(|&r| reg_cols[r].as_slice()).collect();
             let y: Vec<f32> = (0..n_cells).map(|c| expr[c * n_genes + target]).collect();
-            let seed = params
-                .seed
-                ^ (target as u64).wrapping_mul(0x9E3779B97F4A7C15);
+            let seed = params.seed ^ (target as u64).wrapping_mul(0x9E3779B97F4A7C15);
             let imp = forest_importance(
                 &cols,
                 &y,

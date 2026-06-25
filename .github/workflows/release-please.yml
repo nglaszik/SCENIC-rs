@@ -1,0 +1,45 @@
+name: release-please
+
+# Continuously maintains a "release PR" that bumps the version (in Cargo.toml --
+# the single source of truth) and writes CHANGELOG.md from Conventional Commit
+# messages (feat:, fix:, ...). Merging that PR creates the GitHub Release + the
+# v* tag, and then *calls* the reusable build/publish workflow below.
+#
+# Why call it directly instead of letting the pushed tag trigger release.yml:
+# a tag pushed by the default GITHUB_TOKEN does NOT trigger other workflows.
+# Invoking release.yml via `uses:` (workflow_call) runs in the same run, so it
+# fires reliably with no Personal Access Token and keeps OIDC publishing.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-22.04
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: rp
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
+    permissions:
+      contents: write # attach wheels to the GitHub Release
+      id-token: write # PyPI Trusted Publishing (OIDC) + provenance attestation
+      attestations: write
+    uses: ./.github/workflows/release.yml
+    with:
+      publish: true
+      tag: ${{ needs.release-please.outputs.tag_name }}
+    secrets: inherit

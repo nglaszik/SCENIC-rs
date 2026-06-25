@@ -5,11 +5,11 @@ GRN inference (GENIE3 / GRNBoost2), cisTarget pruning (ctx) and regulon scoring
 """
 import collections
 
-from ._core import genie3 as _genie3
-from ._core import grnboost2 as _grnboost2
+from ._core import RankingDb
 from ._core import aucell as _aucell
 from ._core import ctx as _ctx
-from ._core import RankingDb
+from ._core import genie3 as _genie3
+from ._core import grnboost2 as _grnboost2
 
 __all__ = ["genie3", "grnboost2", "aucell", "ctx", "RankingDb", "Regulon"]
 

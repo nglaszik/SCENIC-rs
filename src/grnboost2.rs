@@ -58,7 +58,13 @@ fn build_tree(
     let mean = (s / n as f64) as f32;
     let make_leaf = |nodes: &mut Vec<Node>| {
         let id = nodes.len() as u32;
-        nodes.push(Node { feature: -1, threshold: 0.0, left: 0, right: 0, value: mean });
+        nodes.push(Node {
+            feature: -1,
+            threshold: 0.0,
+            left: 0,
+            right: 0,
+            value: mean,
+        });
         id
     };
     if depth >= max_depth || n < 2 * min_leaf {
@@ -109,7 +115,7 @@ fn build_tree(
             let (rs, rss) = (s - ls, ss - lss);
             let diff = ls / lnf - rs / rnf;
             let friedman = lnf * rnf / (lnf + rnf) * diff * diff;
-            if best.map_or(true, |(_, _, bf, _)| friedman > bf) {
+            if best.is_none_or(|(_, _, bf, _)| friedman > bf) {
                 let mse_dec = node_imp - (lss - ls * ls / lnf) - (rss - rs * rs / rnf);
                 best = Some((f, (vf + vfn) / 2.0, friedman, mse_dec));
             }
@@ -138,9 +144,45 @@ fn build_tree(
         return make_leaf(nodes);
     }
     let id = nodes.len() as u32;
-    nodes.push(Node { feature: f as i32, threshold: thr, left: 0, right: 0, value: mean });
-    let l = build_tree(cols, resid, sorted_feat, &left, depth + 1, max_depth, mf, min_leaf, rng, nodes, gains, feat_buf, member, order_buf);
-    let r = build_tree(cols, resid, sorted_feat, &right, depth + 1, max_depth, mf, min_leaf, rng, nodes, gains, feat_buf, member, order_buf);
+    nodes.push(Node {
+        feature: f as i32,
+        threshold: thr,
+        left: 0,
+        right: 0,
+        value: mean,
+    });
+    let l = build_tree(
+        cols,
+        resid,
+        sorted_feat,
+        &left,
+        depth + 1,
+        max_depth,
+        mf,
+        min_leaf,
+        rng,
+        nodes,
+        gains,
+        feat_buf,
+        member,
+        order_buf,
+    );
+    let r = build_tree(
+        cols,
+        resid,
+        sorted_feat,
+        &right,
+        depth + 1,
+        max_depth,
+        mf,
+        min_leaf,
+        rng,
+        nodes,
+        gains,
+        feat_buf,
+        member,
+        order_buf,
+    );
     nodes[id as usize].left = l;
     nodes[id as usize].right = r;
     id
@@ -203,7 +245,13 @@ fn boost_importance(cols: &[&[f32]], y: &[f32], p: &GbmParams) -> Vec<f64> {
     let mut oob_imp: Vec<f64> = Vec::new();
 
     let oob_mse = |pred: &[f32], oob: &[usize]| -> f64 {
-        let s: f64 = oob.iter().map(|&i| { let r = (y[i] - pred[i]) as f64; r * r }).sum();
+        let s: f64 = oob
+            .iter()
+            .map(|&i| {
+                let r = (y[i] - pred[i]) as f64;
+                r * r
+            })
+            .sum();
         s / oob.len() as f64
     };
 
@@ -216,13 +264,31 @@ fn boost_importance(cols: &[&[f32]], y: &[f32], p: &GbmParams) -> Vec<f64> {
         } else {
             (&all[..], &[][..])
         };
-        let loss_before = if can_stop { oob_mse(&pred, out_bag) } else { 0.0 };
+        let loss_before = if can_stop {
+            oob_mse(&pred, out_bag)
+        } else {
+            0.0
+        };
 
         let mut nodes: Vec<Node> = Vec::new();
-        build_tree(cols, &resid, &sorted_feat, in_bag, 0, p.max_depth, mf, p.min_leaf,
-                   &mut rng, &mut nodes, &mut gains, &mut feat_buf, &mut member, &mut order_buf);
-        for i in 0..n {
-            pred[i] += lr * predict_row(&nodes, cols, i);
+        build_tree(
+            cols,
+            &resid,
+            &sorted_feat,
+            in_bag,
+            0,
+            p.max_depth,
+            mf,
+            p.min_leaf,
+            &mut rng,
+            &mut nodes,
+            &mut gains,
+            &mut feat_buf,
+            &mut member,
+            &mut order_buf,
+        );
+        for (i, p) in pred.iter_mut().enumerate().take(n) {
+            *p += lr * predict_row(&nodes, cols, i);
         }
 
         if can_stop {
@@ -261,7 +327,9 @@ pub fn run_grnboost2(
     (0..n_genes)
         .into_par_iter()
         .flat_map_iter(|target| {
-            let cand: Vec<usize> = (0..regulators.len()).filter(|&r| regulators[r] != target).collect();
+            let cand: Vec<usize> = (0..regulators.len())
+                .filter(|&r| regulators[r] != target)
+                .collect();
             if cand.is_empty() {
                 return Vec::new().into_iter();
             }

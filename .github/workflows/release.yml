@@ -1,12 +1,28 @@
 name: build & publish wheels
 
 # Build abi3 wheels (one per platform, Python >=3.9) + sdist.
-# - tag push  vX.Y.Z  -> build, then publish to PyPI
-# - manual run         -> build only (test the matrix without releasing)
+# Triggered three ways:
+#   - workflow_call    (from release-please.yml, with publish: true) -> build + publish
+#   - tag push  vX.Y.Z (manual `git tag`)                            -> build + publish
+#   - workflow_dispatch                                              -> build only (dry run)
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish to PyPI (otherwise build-only dry run)"
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      publish:
+        type: boolean
+        default: false
+      tag:
+        description: "Tag to attach built artifacts to on the GitHub Release"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -15,6 +31,10 @@ jobs:
   wheels:
     name: wheel ${{ matrix.os }}-${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      id-token: write # build provenance attestation
+      attestations: write
     strategy:
       fail-fast: false
       matrix:
@@ -22,6 +42,7 @@ jobs:
           - { runner: ubuntu-22.04,   os: linux,   target: x86_64,  manylinux: auto }
           - { runner: ubuntu-22.04,   os: linux,   target: aarch64, manylinux: auto }
           - { runner: macos-14,       os: macos,   target: aarch64 }
+          - { runner: macos-13,       os: macos,   target: x86_64 }
           - { runner: windows-latest, os: windows, target: x64 }
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +52,10 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --out dist
           manylinux: ${{ matrix.manylinux }}
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/*.whl
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}-${{ matrix.target }}
@@ -53,16 +78,22 @@ jobs:
   publish:
     name: publish to PyPI
     needs: [wheels, sdist]
-    if: startsWith(github.ref, 'refs/tags/')
+    if: ${{ startsWith(github.ref, 'refs/tags/') || inputs.publish }}
     runs-on: ubuntu-22.04
     environment: pypi
     permissions:
-      id-token: write   # PyPI Trusted Publishing (OIDC) — no API token/secret needed
+      contents: write # attach artifacts to the GitHub Release
+      id-token: write # PyPI Trusted Publishing (OIDC) -- no API token/secret needed
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
+      - name: Attach wheels + sdist to the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          files: dist/*
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist

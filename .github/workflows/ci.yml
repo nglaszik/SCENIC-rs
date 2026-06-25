@@ -1,0 +1,149 @@
+name: CI
+
+# Gates every PR and push to main. Nothing here runs on `pip install` or on a
+# normal local build -- this is the one controlled place a regression is caught
+# before it ships. The `compat` matrix is the guard for the numpy/pandas
+# lock-in pain point: it proves the prebuilt wheel runs across old + new numpy,
+# old + new pandas, and alongside scanpy.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    name: rust (fmt, clippy, test)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test --all
+
+  lint-python:
+    name: ruff
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check
+
+  build-wheel:
+    name: build abi3 wheel
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build wheel
+        uses: PyO3/maturin-action@v1
+        with:
+          args: --release --out dist
+          manylinux: auto
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel
+          path: dist/*.whl
+
+  compat:
+    name: compat / ${{ matrix.label }}
+    needs: build-wheel
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Oldest supported floor: Python 3.9 (the abi3 target), numpy 1.26, pandas 1.5.
+          - { label: "py3.9  numpy1.26 pandas1.5", python: "3.9",  numpy: "numpy==1.26.*", pandas: "pandas==1.5.*" }
+          # Mixed: old numpy with new pandas.
+          - { label: "py3.11 numpy1.26 pandas2.2", python: "3.11", numpy: "numpy==1.26.*", pandas: "pandas==2.2.*" }
+          # Modern stack: numpy 2.x. This is the entry that would have caught the
+          # old pySCENIC trap -- if anything ever forces numpy<2, it goes red.
+          - { label: "py3.12 numpy2   pandas2.2",  python: "3.12", numpy: "numpy>=2,<3",   pandas: "pandas==2.2.*" }
+          # Newest stable Python: proves the abi3 wheel (built once, cp39-abi3)
+          # runs unmodified on a Python much newer than it was built against.
+          - { label: "py3.13 numpy2   pandas2.2",  python: "3.13", numpy: "numpy>=2,<3",   pandas: "pandas==2.2.*" }
+          # Coexistence with scanpy: install scanpy (drags the whole modern
+          # scientific stack), then prove scenic-rs imports and runs alongside it.
+          - { label: "py3.12 + scanpy",            python: "3.12", scanpy: true }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel
+          path: dist
+      - name: Install pinned numpy + pandas
+        if: ${{ !matrix.scanpy }}
+        run: pip install "${{ matrix.numpy }}" "${{ matrix.pandas }}"
+      - name: Install scanpy (pulls the modern scientific stack)
+        if: ${{ matrix.scanpy }}
+        run: pip install scanpy
+      - name: Install pytest
+        run: pip install pytest
+      - name: Install the built wheel WITHOUT deps
+        # --no-deps so installing scenic-rs cannot quietly relax the numpy/pandas
+        # versions we deliberately pinned above. If the wheel genuinely needed a
+        # newer numpy, the import/test step below would fail -- which is the signal
+        # we want.
+        run: pip install --no-deps dist/*.whl
+      - name: Show resolved versions
+        run: python -c "import numpy, pandas; print('numpy', numpy.__version__, '| pandas', pandas.__version__)"
+      - name: Smoke + regression tests
+        run: pytest
+      - name: Prove coexistence with scanpy
+        if: ${{ matrix.scanpy }}
+        run: python -c "import scanpy, scenic_rs; print('scanpy', scanpy.__version__, '+ scenic_rs import OK')"
+
+  # Early warning for the NEXT Python. abi3 means the shipped wheel already runs
+  # on future 3.x without a rebuild, but a pre-release Python can still surface
+  # toolchain issues (e.g. pyo3 needing a bump). This is non-blocking on purpose
+  # -- it tells you about 3.x+1 before it's released, without failing CI when the
+  # ecosystem (numpy/pandas) hasn't shipped wheels for it yet.
+  future-python:
+    name: future python (pre-release, non-blocking)
+    needs: build-wheel
+    runs-on: ubuntu-22.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          allow-prereleases: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel
+          path: dist
+      - name: Install numpy/pandas (pre-release allowed) + the abi3 wheel
+        run: |
+          pip install --pre numpy pandas || pip install numpy pandas
+          pip install --no-deps dist/*.whl pytest
+      - run: python -c "import scenic_rs; print('scenic_rs imports on', __import__('sys').version)"
+      - run: pytest
+
+  deny:
+    name: cargo-deny (licenses + advisories)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check advisories licenses bans sources
