@@ -126,8 +126,8 @@ so any step can also be swapped in individually alongside pySCENIC.
 
 GRNBoost2 is stochastic — running the algorithm twice (different seed) only agrees ~0.73 per target.
 
-![output concordance](bench/figures/concordance.png)
-![GRN per-target concordance](bench/figures/grn_per_target.png)
+![output concordance](https://raw.githubusercontent.com/nglaszik/SCENIC-rs/main/bench/figures/concordance.png)
+![GRN per-target concordance](https://raw.githubusercontent.com/nglaszik/SCENIC-rs/main/bench/figures/grn_per_target.png)
 
 ### Memory & speed
 
@@ -146,8 +146,8 @@ At 96 cores pySCENIC peaks at ~11.7 GB (GRNBoost2), ~20.5 GB (GENIE3) and ~17 GB
 
 Speedup on GRNBoost2 is likely due to Dask setup, relatively negligible on larger datasets.
 
-![peak memory vs cores](bench/figures/mem_scaling.png)
-![wall-clock vs cores](bench/figures/time_scaling.png)
+![peak memory vs cores](https://raw.githubusercontent.com/nglaszik/SCENIC-rs/main/bench/figures/mem_scaling.png)
+![wall-clock vs cores](https://raw.githubusercontent.com/nglaszik/SCENIC-rs/main/bench/figures/time_scaling.png)
 
 ### Reproduce
 

@@ -8,6 +8,9 @@ name = "scenic-rs"
 # `dynamic` support, so it only ever lives in one place. release-please bumps it there.
 dynamic = ["version"]
 description = "Rust implementation of the SCENIC single-cell GRN pipeline (GRN + cisTarget + AUCell)"
+# Long description shown on the PyPI project page (rendered from the README).
+# Without this, PyPI shows "author has not provided a project description".
+readme = "README.md"
 requires-python = ">=3.9"
 license = "GPL-3.0-or-later"
 # Keep this list minimal and UNPINNED on purpose: the heavy compute is in the
