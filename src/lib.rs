@@ -93,7 +93,7 @@ fn genie3_py(
         min_leaf: min_samples_leaf,
         seed,
     };
-    let edges = py.allow_threads(|| run_genie3(&expr_vec, n_cells, n_genes, &regulators, &params));
+    let edges = py.detach(|| run_genie3(&expr_vec, n_cells, n_genes, &regulators, &params));
     Ok(names_for(&edges, &gene_names))
 }
 
@@ -134,7 +134,7 @@ fn grnboost2_py(
         seed,
     };
     let edges =
-        py.allow_threads(|| run_grnboost2(&expr_vec, n_cells, n_genes, &regulators, &params));
+        py.detach(|| run_grnboost2(&expr_vec, n_cells, n_genes, &regulators, &params));
     Ok(names_for(&edges, &gene_names))
 }
 
@@ -168,7 +168,7 @@ fn aucell_py(
         .collect();
     let amr = auc_max_rank.unwrap_or_else(|| ((0.05 * n_genes as f64).ceil() as usize).max(1));
     let expr_vec: Vec<f32> = arr.iter().copied().collect();
-    let flat = py.allow_threads(|| run_aucell(&expr_vec, n_cells, n_genes, &regulons, amr));
+    let flat = py.detach(|| run_aucell(&expr_vec, n_cells, n_genes, &regulons, amr));
     Ok((regulon_names, flat, n_cells, regulons.len()))
 }
 
@@ -188,7 +188,7 @@ fn ctx_aucs_nes_py(
     let arr = rankings.as_array();
     let (n_motifs, n_genes) = (arr.shape()[0], arr.shape()[1]);
     let flat: Vec<i32> = arr.iter().copied().collect();
-    py.allow_threads(|| {
+    py.detach(|| {
         let a = ctx::aucs(
             &flat,
             n_motifs,
@@ -215,7 +215,7 @@ fn ctx_rank_at_max_py(
     let arr = rankings.as_array();
     let (n_motifs, n_genes) = (arr.shape()[0], arr.shape()[1]);
     let flat: Vec<i32> = arr.iter().copied().collect();
-    py.allow_threads(|| {
+    py.detach(|| {
         let rccs = ctx::recovery_curves(&flat, n_motifs, n_genes, &weights, rank_threshold);
         let a2s = ctx::avg2std_rcc(&rccs, n_motifs, rank_threshold);
         ctx::rank_at_max(&rccs, n_motifs, rank_threshold, &a2s)
@@ -286,7 +286,7 @@ impl PyRankingDb {
             None => vec![1.0; present.len()],
         };
         let ng = present.len();
-        let (aucs, ness) = py.allow_threads(|| {
+        let (aucs, ness) = py.detach(|| {
             let a = ctx::aucs(
                 &rankings,
                 self.inner.n_motifs,
@@ -330,7 +330,7 @@ fn ctx_modules_py(
     let thresholds = thresholds.unwrap_or_else(|| vec![0.75, 0.90]);
     let top_n_targets = top_n_targets.unwrap_or_else(|| vec![50]);
     let top_n_regulators = top_n_regulators.unwrap_or_else(|| vec![5, 10, 50]);
-    let mods = py.allow_threads(|| {
+    let mods = py.detach(|| {
         ctxmod::modules_from_adjacencies(
             &adj_tf,
             &adj_target,
