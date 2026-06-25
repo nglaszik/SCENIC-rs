@@ -42,7 +42,9 @@ jobs:
           - { runner: ubuntu-22.04,   os: linux,   target: x86_64,  manylinux: auto }
           - { runner: ubuntu-22.04,   os: linux,   target: aarch64, manylinux: auto }
           - { runner: macos-14,       os: macos,   target: aarch64 }
-          - { runner: macos-13,       os: macos,   target: x86_64 }
+          # NOTE: do NOT add macos-13 / x86_64 (Intel Mac). It was removed
+          # deliberately (commit ca0844a) -- that runner gets no workers in
+          # this setup and the job hangs indefinitely, blocking the publish.
           - { runner: windows-latest, os: windows, target: x64 }
     steps:
       - uses: actions/checkout@v4
