@@ -4,6 +4,13 @@ This file is maintained automatically by [release-please](https://github.com/goo
 from Conventional Commit messages (`feat:`, `fix:`, ...). New version sections
 are added above this note when a release PR is merged.
 
+## [0.2.3](https://github.com/nglaszik/SCENIC-rs/compare/v0.2.2...v0.2.3) (2026-06-25)
+
+
+### Bug Fixes
+
+* add trove classifiers and project URLs for PyPI ([1e15650](https://github.com/nglaszik/SCENIC-rs/commit/1e156502e4501d5077863527c8f88db3e0c61971))
+
 ## [0.2.2](https://github.com/nglaszik/SCENIC-rs/compare/v0.2.1...v0.2.2) (2026-06-25)
 
 
