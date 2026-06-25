@@ -4,6 +4,13 @@ This file is maintained automatically by [release-please](https://github.com/goo
 from Conventional Commit messages (`feat:`, `fix:`, ...). New version sections
 are added above this note when a release PR is merged.
 
+## [0.2.1](https://github.com/nglaszik/SCENIC-rs/compare/v0.2.0...v0.2.1) (2026-06-25)
+
+
+### Bug Fixes
+
+* drop macos-13 x86_64 wheel that hangs the release pipeline ([c0142ae](https://github.com/nglaszik/SCENIC-rs/commit/c0142ae2608ca879e199baea9c520b6e95c1d100))
+
 ## [0.2.0](https://github.com/nglaszik/SCENIC-rs/compare/v0.1.1...v0.2.0) (2026-06-25)
 
 
