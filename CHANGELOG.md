@@ -4,6 +4,13 @@ This file is maintained automatically by [release-please](https://github.com/goo
 from Conventional Commit messages (`feat:`, `fix:`, ...). New version sections
 are added above this note when a release PR is merged.
 
+## [0.2.4](https://github.com/nglaszik/SCENIC-rs/compare/v0.2.3...v0.2.4) (2026-06-25)
+
+
+### Bug Fixes
+
+* render README as the PyPI long description ([9ac257b](https://github.com/nglaszik/SCENIC-rs/commit/9ac257bc474397e4e3c1a7c8f65d580d73cf4167))
+
 ## [0.2.3](https://github.com/nglaszik/SCENIC-rs/compare/v0.2.2...v0.2.3) (2026-06-25)
 
 
