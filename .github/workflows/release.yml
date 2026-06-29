@@ -55,7 +55,7 @@ jobs:
           args: --release --out dist
           manylinux: ${{ matrix.manylinux }}
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: dist/*.whl
       - uses: actions/upload-artifact@v6
