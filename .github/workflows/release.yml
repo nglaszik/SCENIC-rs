@@ -87,7 +87,7 @@ jobs:
       contents: write # attach artifacts to the GitHub Release
       id-token: write # PyPI Trusted Publishing (OIDC) -- no API token/secret needed
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
