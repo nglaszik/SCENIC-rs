@@ -75,9 +75,10 @@ jobs:
           # Modern stack: numpy 2.x. This is the entry that would have caught the
           # old pySCENIC trap -- if anything ever forces numpy<2, it goes red.
           - { label: "py3.12 numpy2   pandas2.2",  python: "3.12", numpy: "numpy>=2,<3",   pandas: "pandas==2.2.*" }
+          - { label: "py3.13 numpy2   pandas2.2",  python: "3.13", numpy: "numpy>=2,<3",   pandas: "pandas==2.2.*" }
           # Newest stable Python: proves the abi3 wheel (built once, cp39-abi3)
           # runs unmodified on a Python much newer than it was built against.
-          - { label: "py3.13 numpy2   pandas2.2",  python: "3.13", numpy: "numpy>=2,<3",   pandas: "pandas==2.2.*" }
+          - { label: "py3.14 numpy2   pandas2.2",  python: "3.14", numpy: "numpy>=2,<3",   pandas: "pandas==2.2.*" }
           # Coexistence with scanpy: install scanpy (drags the whole modern
           # scientific stack), then prove scenic-rs imports and runs alongside it.
           - { label: "py3.12 + scanpy",            python: "3.12", scanpy: true }
@@ -126,7 +127,7 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: "3.15"
           allow-prereleases: true
       - uses: actions/download-artifact@v7
         with:
