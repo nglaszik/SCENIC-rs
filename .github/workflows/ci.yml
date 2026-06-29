@@ -55,7 +55,7 @@ jobs:
         with:
           args: --release --out dist
           manylinux: auto
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: wheel
           path: dist/*.whl
