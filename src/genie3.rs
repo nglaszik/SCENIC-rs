@@ -52,7 +52,7 @@ pub fn run_genie3(
             let edges: Vec<(usize, usize, f32)> = cand
                 .iter()
                 .zip(imp.iter())
-                .filter(|(_, &w)| w > 0.0)
+                .filter(|&(_, &w)| w > 0.0)
                 .map(|(&r, &w)| (regulators[r], target, w as f32))
                 .collect();
             edges.into_iter()
