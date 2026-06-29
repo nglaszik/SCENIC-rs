@@ -1,6 +1,6 @@
 [package]
 name = "scenic_rs"
-version = "0.2.4"
+version = "0.3.0"
 edition = "2021"
 description = "Rust implementation of the SCENIC gene regulatory network pipeline"
 license = "GPL-3.0-or-later"

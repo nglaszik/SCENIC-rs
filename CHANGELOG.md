@@ -4,6 +4,13 @@ This file is maintained automatically by [release-please](https://github.com/goo
 from Conventional Commit messages (`feat:`, `fix:`, ...). New version sections
 are added above this note when a release PR is merged.
 
+## [0.3.0](https://github.com/nglaszik/SCENIC-rs/compare/v0.2.4...v0.3.0) (2026-06-29)
+
+
+### Features
+
+* declare and test Python 3.14 support ([f38732f](https://github.com/nglaszik/SCENIC-rs/commit/f38732fccc8c0ea312f235e64de7ab2911bf6d2d))
+
 ## [0.2.4](https://github.com/nglaszik/SCENIC-rs/compare/v0.2.3...v0.2.4) (2026-06-25)
 
 
